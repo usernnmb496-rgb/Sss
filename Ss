@@ -1,0 +1,282 @@
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
+CoreGui = game:GetService("CoreGui")
+loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+icons = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua"
+u = loadstring(game:HttpGet(('https://raw.githubusercontent.com/fiiremax/Scripts/refs/heads/master/Scriptnew/GitHub/Scripts/Module.lua')))()
+Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+Options = Library.Options
+Toggles = Library.Toggles
+
+Library.ForceCheckbox = false
+Window = Library:CreateWindow({
+	Title = "XShadow", 
+	Footer = "Project XShadow | FTAP",
+    Icon = 13426960579,
+	NotifySide = "Right",
+	ShowCustomCursor = false,
+    EnableCompacting = true, 
+    SidebarCompacted = true,
+    BackgroundImage = "rbxassetid://",
+})
+
+Tabs = {
+    Main = Window:AddTab("Main", "house"), 
+	Weapons = Window:AddTab("Weapons", "sword"),
+	UISettings = Window:AddTab("UI Settings", "settings")
+}
+
+-- Main Tab
+mainL = Tabs.Main:AddLeftGroupbox("Main", "user")
+
+-- Weapons Tab
+local WeaponGroup = Tabs.Weapons:AddLeftGroupbox("Explosive", "bomb")
+
+-- ฟังก์ชันยิงระเบิด
+local function FireBomb(Radius, TimeLength, ImpactSpeed, MaxForce, PosX, PosY, PosZ)
+	local args = {
+		{
+			Radius = Radius or 17.5,
+			TimeLength = TimeLength or 0.5,
+			Hitbox = Instance.new("Part", nil),
+			ExplodesByFire = true,
+			MaxForcePerStudSquared = MaxForce or 225,
+			Model = Instance.new("Model", nil),
+			ImpactSpeed = ImpactSpeed or 100,
+			ExplodesByPointy = false,
+			DestroysModel = true,
+			PositionPart = Instance.new("Part", nil)
+		},
+		vector.create(PosX or 342.666, PosY or -7.611, PosZ or -345.335)
+	}
+	game:GetService("ReplicatedStorage"):WaitForChild("BombEvents"):WaitForChild("BombExplode"):FireServer(unpack(args))
+end
+
+-- ปุ่มยิงระเบิดตำแหน่งปัจจุบัน
+WeaponGroup:AddButton({
+    Text = "Bomb At Player",
+    Func = function()
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local pos = character.HumanoidRootPart.Position
+            FireBomb(17.5, 0.5, 100, 225, pos.X, pos.Y, pos.Z)
+        end
+    end
+})
+
+-- ปุ่มยิงระเบิดตำแหน่งที่กำหนด
+WeaponGroup:AddButton({
+    Text = "Bomb At Custom Pos",
+    Func = function()
+        FireBomb(17.5, 0.5, 100, 225, 342.666, -7.611, -345.335)
+    end
+})
+
+-- ตัวเลือกปรับค่า
+WeaponGroup:AddSlider("BombRadius", {
+    Text = "Bomb Radius",
+    Default = 17.5,
+    Min = 5,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(Value)
+        _G.BombRadius = Value
+    end
+})
+
+WeaponGroup:AddSlider("BombSpeed", {
+    Text = "Impact Speed",
+    Default = 100,
+    Min = 50,
+    Max = 500,
+    Rounding = 1,
+    Callback = function(Value)
+        _G.BombSpeed = Value
+    end
+})
+
+WeaponGroup:AddSlider("BombForce", {
+    Text = "Max Force",
+    Default = 225,
+    Min = 100,
+    Max = 1000,
+    Rounding = 1,
+    Callback = function(Value)
+        _G.BombForce = Value
+    end
+})
+
+-- ปุ่มยิงด้วยค่าที่ตั้งไว้
+WeaponGroup:AddButton({
+    Text = "Fire Bomb (Custom Settings)",
+    Func = function()
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local pos = character.HumanoidRootPart.Position
+            FireBomb(
+                _G.BombRadius or 17.5,
+                0.5,
+                _G.BombSpeed or 100,
+                _G.BombForce or 225,
+                pos.X, pos.Y, pos.Z
+            )
+        end
+    end
+})
+
+-- UI Settings (เหมือนเดิม)
+MenuGroup = Tabs.UISettings:AddLeftGroupbox("Menu", "user-lock")
+BackGroup = Tabs.UISettings:AddRightGroupbox("Background", "mail")
+
+MenuGroup:AddCheckbox("KeybindMenuOpen", {
+    Text = "Open Keybind Menu",
+    Default = Library.KeybindFrame.Visible,
+    Callback = function(value)
+        Library.KeybindFrame.Visible = value
+    end,
+})
+
+MenuGroup:AddCheckbox("ShowCustomCursor", {
+    Text = "Custom Cursor",
+    Default = true,
+    Callback = function(Value)
+        Library.ShowCustomCursor = Value
+    end,
+})
+
+MenuGroup:AddDropdown("NotificationSide", {
+    Values = { "Left", "Right" },
+    Default = "Right",
+    Text = "Notification Side",
+    Callback = function(Value)
+        Library:SetNotifySide(Value)
+    end,
+})
+
+MenuGroup:AddDropdown("DPIDropdown", {
+    Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
+    Default = "100%",
+    Text = "DPI Scale",
+    Callback = function(Value)
+        Value = Value:gsub("%%", "")
+        DPI = tonumber(Value)
+        Library:SetDPIScale(DPI)
+    end,
+})
+
+MenuGroup:AddDivider()
+
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
+    Default = "RightShift", 
+    NoUI = true, 
+    Text = "Menu keybind" 
+})
+
+MenuGroup:AddButton({
+    Text = "Unload",
+    Func = function()
+        Library:Unload()
+    end,
+    DoubleClick = false
+})
+
+-- Background (เหมือนเดิม)
+bgData = {
+    Enabled = true,
+    Image = "0",
+    Last = nil,
+    Transparency = 0.15
+}
+
+bgToken = 0
+
+local function formatImage(id)
+    id = tostring(id or ""):gsub("%s+", "")
+    if id == "" then
+        return "rbxassetid://0"
+    end
+    if id:find("rbxassetid://") then
+        return id
+    end
+    return "rbxassetid://" .. id
+end
+
+local function applyBackground()
+    bgToken = bgToken + 1
+    current = bgToken
+    
+    task.delay(0.05, function()
+        if current ~= bgToken then
+            return
+        end
+        
+        image = bgData.Enabled and formatImage(bgData.Image) or "rbxassetid://0"
+        
+        if bgData.Last == image then
+            return
+        end
+        
+        bgData.Last = image
+        
+        pcall(function()
+            Window:SetBackgroundImage(image)
+            Window:SetBackgroundTransparency(bgData.Transparency)
+        end)
+    end)
+end
+
+BackGroup:AddCheckbox("EnableBackground", {
+    Text = "Enable Background",
+    Default = true,
+    Callback = function(Value)
+        bgData.Enabled = Value
+        applyBackground()
+    end
+})
+
+BackGroup:AddInput("BackgroundAsset", {
+    Text = "Asset ID",
+    Default = "0",
+    Callback = function(Value)
+        bgData.Image = tostring(Value)
+        applyBackground()
+    end
+})
+
+BackGroup:AddButton({
+    Text = "Clear Background",
+    Callback = function()
+        bgData.Image = "0"
+        applyBackground()
+    end
+})
+
+applyBackground()
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+ThemeManager:SetFolder("9rr")
+SaveManager:SetFolder("9rr/Configs")
+SaveManager:SetSubFolder("game-config")
+
+ThemeManager:ApplyToTab(Tabs.UISettings)
+SaveManager:BuildConfigSection(Tabs.UISettings)
+
+Window:SetCornerRadius(20)
+Library.ShowCustomCursor = true
+watermark = Library:AddDraggableLabel("ᴇᴅɢᴇ | 0 FPS | 0 ms")
+
+task.spawn(function()
+    while task.wait(0.5) do
+        fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
+        ping = math.floor(game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue())
+        watermark:SetText(string.format("ᴇᴅɢᴇ | %d FPS | %d ms", fps, ping))
+    end
+end)
