@@ -26,257 +26,978 @@ Window = Library:CreateWindow({
 Tabs = {
     Main = Window:AddTab("Main", "house"), 
 	Weapons = Window:AddTab("Weapons", "sword"),
+    Kick = Window:AddTab("Kick", "crosshair"),
 	UISettings = Window:AddTab("UI Settings", "settings")
 }
 
 -- Main Tab
 mainL = Tabs.Main:AddLeftGroupbox("Main", "user")
 
--- Weapons Tab
-local WeaponGroup = Tabs.Weapons:AddLeftGroupbox("Explosive", "bomb")
+-- Kick Tab
+local KickGroup = Tabs.Kick:AddLeftGroupbox("Loop Kick", "target")
 
--- ฟังก์ชันยิงระเบิด
-local function FireBomb(Radius, TimeLength, ImpactSpeed, MaxForce, PosX, PosY, PosZ)
-	local args = {
-		{
-			Radius = Radius or 17.5,
-			TimeLength = TimeLength or 0.5,
-			Hitbox = Instance.new("Part", nil),
-			ExplodesByFire = true,
-			MaxForcePerStudSquared = MaxForce or 225,
-			Model = Instance.new("Model", nil),
-			ImpactSpeed = ImpactSpeed or 100,
-			ExplodesByPointy = false,
-			DestroysModel = true,
-			PositionPart = Instance.new("Part", nil)
-		},
-		vector.create(PosX or 342.666, PosY or -7.611, PosZ or -345.335)
-	}
-	game:GetService("ReplicatedStorage"):WaitForChild("BombEvents"):WaitForChild("BombExplode"):FireServer(unpack(args))
+-- ตัวแปรสำหรับ Loop Kick
+local kickTarget = nil
+local selectedKickPlayer = nil
+
+-- ดึงรายชื่อผู้เล่น
+local function getPlayerList()
+	local list = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			table.insert(list, plr.DisplayName .. " (" .. plr.Name .. ")")
+		end
+	end
+	return list
 end
 
--- ปุ่มยิงระเบิดตำแหน่งปัจจุบัน
-WeaponGroup:AddButton({
-    Text = "Bomb At Player",
-    Func = function()
-        local character = LocalPlayer.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local pos = character.HumanoidRootPart.Position
-            FireBomb(17.5, 0.5, 100, 225, pos.X, pos.Y, pos.Z)
-        end
-    end
-})
-
--- ปุ่มยิงระเบิดตำแหน่งที่กำหนด
-WeaponGroup:AddButton({
-    Text = "Bomb At Custom Pos",
-    Func = function()
-        FireBomb(17.5, 0.5, 100, 225, 342.666, -7.611, -345.335)
-    end
-})
-
--- ตัวเลือกปรับค่า
-WeaponGroup:AddSlider("BombRadius", {
-    Text = "Bomb Radius",
-    Default = 17.5,
-    Min = 5,
-    Max = 50,
-    Rounding = 1,
-    Callback = function(Value)
-        _G.BombRadius = Value
-    end
-})
-
-WeaponGroup:AddSlider("BombSpeed", {
-    Text = "Impact Speed",
-    Default = 100,
-    Min = 50,
-    Max = 500,
-    Rounding = 1,
-    Callback = function(Value)
-        _G.BombSpeed = Value
-    end
-})
-
-WeaponGroup:AddSlider("BombForce", {
-    Text = "Max Force",
-    Default = 225,
-    Min = 100,
-    Max = 1000,
-    Rounding = 1,
-    Callback = function(Value)
-        _G.BombForce = Value
-    end
-})
-
--- ปุ่มยิงด้วยค่าที่ตั้งไว้
-WeaponGroup:AddButton({
-    Text = "Fire Bomb (Custom Settings)",
-    Func = function()
-        local character = LocalPlayer.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local pos = character.HumanoidRootPart.Position
-            FireBomb(
-                _G.BombRadius or 17.5,
-                0.5,
-                _G.BombSpeed or 100,
-                _G.BombForce or 225,
-                pos.X, pos.Y, pos.Z
-            )
-        end
-    end
-})
-
--- UI Settings (เหมือนเดิม)
-MenuGroup = Tabs.UISettings:AddLeftGroupbox("Menu", "user-lock")
-BackGroup = Tabs.UISettings:AddRightGroupbox("Background", "mail")
-
-MenuGroup:AddCheckbox("KeybindMenuOpen", {
-    Text = "Open Keybind Menu",
-    Default = Library.KeybindFrame.Visible,
-    Callback = function(value)
-        Library.KeybindFrame.Visible = value
-    end,
-})
-
-MenuGroup:AddCheckbox("ShowCustomCursor", {
-    Text = "Custom Cursor",
-    Default = true,
-    Callback = function(Value)
-        Library.ShowCustomCursor = Value
-    end,
-})
-
-MenuGroup:AddDropdown("NotificationSide", {
-    Values = { "Left", "Right" },
-    Default = "Right",
-    Text = "Notification Side",
-    Callback = function(Value)
-        Library:SetNotifySide(Value)
-    end,
-})
-
-MenuGroup:AddDropdown("DPIDropdown", {
-    Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
-    Default = "100%",
-    Text = "DPI Scale",
-    Callback = function(Value)
-        Value = Value:gsub("%%", "")
-        DPI = tonumber(Value)
-        Library:SetDPIScale(DPI)
-    end,
-})
-
-MenuGroup:AddDivider()
-
-MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
-    Default = "RightShift", 
-    NoUI = true, 
-    Text = "Menu keybind" 
-})
-
-MenuGroup:AddButton({
-    Text = "Unload",
-    Func = function()
-        Library:Unload()
-    end,
-    DoubleClick = false
-})
-
--- Background (เหมือนเดิม)
-bgData = {
-    Enabled = true,
-    Image = "0",
-    Last = nil,
-    Transparency = 0.15
-}
-
-bgToken = 0
-
-local function formatImage(id)
-    id = tostring(id or ""):gsub("%s+", "")
-    if id == "" then
-        return "rbxassetid://0"
-    end
-    if id:find("rbxassetid://") then
-        return id
-    end
-    return "rbxassetid://" .. id
+local function getPlayerFromSelection(selection)
+	if not selection then
+		return nil
+	end
+	local username = selection:match("%((.-)%)")
+	if username then
+		return Players:FindFirstChild(username)
+	end
+	return nil
 end
 
-local function applyBackground()
-    bgToken = bgToken + 1
-    current = bgToken
-    
-    task.delay(0.05, function()
-        if current ~= bgToken then
-            return
-        end
-        
-        image = bgData.Enabled and formatImage(bgData.Image) or "rbxassetid://0"
-        
-        if bgData.Last == image then
-            return
-        end
-        
-        bgData.Last = image
-        
-        pcall(function()
-            Window:SetBackgroundImage(image)
-            Window:SetBackgroundTransparency(bgData.Transparency)
-        end)
-    end)
+-- Dropdown เลือกเป้าหมาย
+KickGroup:AddDropdown("KickPlayerDropdown", {
+	Values = getPlayerList(),
+	Default = 1,
+	Multi = false,
+	Text = "Select Target",
+	Callback = function(Value)
+		selectedKickPlayer = getPlayerFromSelection(Value)
+		kickTarget = selectedKickPlayer
+	end,
+})
+
+KickGroup:AddButton({
+	Text = "Refresh Player List",
+	Func = function()
+		Options.KickPlayerDropdown:SetValues(getPlayerList())
+		Options.KickPlayerDropdown:SetValue(nil)
+		selectedKickPlayer = nil
+		kickTarget = nil
+	end
+})
+
+-- =====================================================================
+-- LOOP KICK FUNCTIONS
+-- =====================================================================
+
+local RS = ReplicatedStorage
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+-- SPAM GRAB
+local kickSpamActive = false
+local kickSpamConnection = nil
+local savedPos = nil
+
+local function startKickSpam()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local myChar = LocalPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myRoot then
+		return
+	end
+	
+	savedPos = myRoot.CFrame
+	local GE = RS:WaitForChild("GrabEvents")
+	local dragging = false
+	local grabStartTime = 0
+	
+	kickSpamActive = true
+	kickSpamConnection = RunService.Heartbeat:Connect(function()
+		if not kickSpamActive or not kickTarget or not kickTarget.Parent then
+			kickSpamActive = false
+			return
+		end
+		
+		myChar = LocalPlayer.Character
+		myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if not myRoot then
+			return
+		end
+		
+		local tChar = kickTarget.Character
+		local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+		local tHum = tChar and tChar:FindFirstChild("Humanoid")
+		
+		if tRoot and tHum and tHum.Health > 0 then
+			tRoot.AssemblyLinearVelocity = Vector3.zero
+			tRoot.AssemblyAngularVelocity = Vector3.zero
+			
+			if not dragging then
+				myRoot.CFrame = tRoot.CFrame
+				myRoot.Velocity = Vector3.zero
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = true
+					GE.SetNetworkOwner:FireServer(tRoot, myRoot.CFrame)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+				
+				if grabStartTime == 0 then
+					grabStartTime = tick()
+				end
+				
+				if tick() - grabStartTime > 0.35 then
+					dragging = true
+					grabStartTime = 0
+				end
+			else
+				myRoot.CFrame = savedPos
+				myRoot.Velocity = Vector3.zero
+				local lockPos = savedPos * CFrame.new(0, 17, 0)
+				tRoot.CFrame = lockPos
+				tRoot.Velocity = Vector3.zero
+				tRoot.RotVelocity = Vector3.zero
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = false
+					GE.SetNetworkOwner:FireServer(tRoot, lockPos)
+					GE.DestroyGrabLine:FireServer(tRoot)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+			end
+		else
+			dragging = false
+			grabStartTime = 0
+		end
+	end)
 end
 
-BackGroup:AddCheckbox("EnableBackground", {
-    Text = "Enable Background",
-    Default = true,
-    Callback = function(Value)
-        bgData.Enabled = Value
-        applyBackground()
-    end
+local function stopKickSpam()
+	kickSpamActive = false
+	if kickSpamConnection then
+		kickSpamConnection:Disconnect()
+		kickSpamConnection = nil
+	end
+	local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if myRoot and savedPos then
+		myRoot.CFrame = savedPos
+		myRoot.Velocity = Vector3.zero
+	end
+	savedPos = nil
+end
+
+-- RAGDOLL GRAB
+local kickRagdollActive = false
+local kickRagdollConnection = nil
+
+local function IsRagdolled(hum)
+	local r = hum and hum:FindFirstChild("Ragdolled")
+	return r ~= nil and r.Value == true
+end
+
+local function startKickRagdoll()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local myChar = LocalPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myRoot then
+		return
+	end
+	
+	savedPos = myRoot.CFrame
+	local GE = RS:WaitForChild("GrabEvents")
+	local dragging = false
+	local grabStart = 0
+	
+	kickRagdollActive = true
+	kickRagdollConnection = RunService.Heartbeat:Connect(function()
+		if not kickRagdollActive or not kickTarget or not kickTarget.Parent then
+			kickRagdollActive = false
+			return
+		end
+		
+		myChar = LocalPlayer.Character
+		myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if not myRoot then
+			return
+		end
+		
+		local tChar = kickTarget.Character
+		local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+		local tHum = tChar and tChar:FindFirstChild("Humanoid")
+		
+		if tRoot and tHum and tHum.Health > 0 then
+			tRoot.AssemblyLinearVelocity = Vector3.zero
+			tRoot.AssemblyAngularVelocity = Vector3.zero
+			
+			if not dragging then
+				myRoot.CFrame = tRoot.CFrame
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = true
+					GE.SetNetworkOwner:FireServer(tRoot, myRoot.CFrame)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+				
+				if grabStart == 0 then
+					grabStart = tick()
+				end
+				
+				if tick() - grabStart > 0.15 then
+					dragging = true
+					grabStart = 0
+					myRoot.CFrame = savedPos
+				end
+			else
+				local lockCFrame = CFrame.new(savedPos.Position + Vector3.new(0, 7, 0)) *
+					CFrame.Angles(
+						math.rad(math.random(-180, 180)),
+						math.rad(math.random(-180, 180)),
+						math.rad(math.random(-180, 180))
+					)
+				tRoot.CFrame = tRoot.CFrame:Lerp(lockCFrame, 0.2)
+				tRoot.Velocity = Vector3.zero
+				tRoot.RotVelocity = Vector3.zero
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = false
+					GE.SetNetworkOwner:FireServer(tRoot, tRoot.CFrame)
+					GE.DestroyGrabLine:FireServer(tRoot)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+			end
+		else
+			dragging = false
+			grabStart = 0
+		end
+	end)
+end
+
+local function stopKickRagdoll()
+	kickRagdollActive = false
+	if kickRagdollConnection then
+		kickRagdollConnection:Disconnect()
+		kickRagdollConnection = nil
+	end
+	local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if myRoot and savedPos then
+		myRoot.CFrame = savedPos
+		myRoot.Velocity = Vector3.zero
+	end
+	savedPos = nil
+end
+
+-- GRAB TROLL
+local kickTrollActive = false
+local kickTrollConnection = nil
+
+local function startKickTroll()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local myChar = LocalPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myRoot then
+		return
+	end
+	
+	savedPos = myRoot.CFrame
+	local GE = RS:WaitForChild("GrabEvents")
+	local dragging = false
+	local grabStartTime = 0
+	
+	kickTrollActive = true
+	kickTrollConnection = RunService.Heartbeat:Connect(function()
+		if not kickTrollActive or not kickTarget or not kickTarget.Parent then
+			kickTrollActive = false
+			return
+		end
+		
+		myChar = LocalPlayer.Character
+		myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if not myRoot then
+			return
+		end
+		
+		local tChar = kickTarget.Character
+		local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+		local tHum = tChar and tChar:FindFirstChild("Humanoid")
+		
+		if tRoot and tHum and tHum.Health > 0 then
+			tRoot.AssemblyLinearVelocity = Vector3.zero
+			tRoot.AssemblyAngularVelocity = Vector3.zero
+			
+			if not dragging then
+				myRoot.CFrame = tRoot.CFrame
+				myRoot.Velocity = Vector3.zero
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = true
+					GE.SetNetworkOwner:FireServer(tRoot, myRoot.CFrame)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+				
+				if grabStartTime == 0 then
+					grabStartTime = tick()
+				elseif tick() - grabStartTime > 0.35 then
+					dragging = true
+					grabStartTime = 0
+				end
+			else
+				if not IsRagdolled(tHum) then
+					dragging = false
+					grabStartTime = 0
+					pcall(function()
+						GE.DestroyGrabLine:FireServer(tRoot)
+					end)
+					return
+				end
+				
+				myRoot.CFrame = savedPos
+				myRoot.Velocity = Vector3.zero
+				local lockPos = savedPos * CFrame.new(0, 17, 0)
+				tRoot.CFrame = lockPos
+				tRoot.Velocity = Vector3.zero
+				tRoot.RotVelocity = Vector3.zero
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = false
+					GE.SetNetworkOwner:FireServer(tRoot, lockPos)
+					GE.DestroyGrabLine:FireServer(tRoot)
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+			end
+		else
+			dragging = false
+			grabStartTime = 0
+		end
+	end)
+end
+
+local function stopKickTroll()
+	kickTrollActive = false
+	if kickTrollConnection then
+		kickTrollConnection:Disconnect()
+		kickTrollConnection = nil
+	end
+	local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if myRoot and savedPos then
+		myRoot.CFrame = savedPos
+		myRoot.Velocity = Vector3.zero
+	end
+	savedPos = nil
+end
+
+-- GRAB + BLOB
+local kickBlobActive = false
+local kickBlobConnection = nil
+
+local function startKickBlob()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local seat = hum and hum.SeatPart
+	
+	if not seat or seat.Parent.Name ~= "CreatureBlobman" then
+		return
+	end
+	
+	local GE = RS:WaitForChild("GrabEvents")
+	local blob = seat.Parent
+	local blobRoot = blob:FindFirstChild("HumanoidRootPart") or blob.PrimaryPart
+	local scriptObj = blob:FindFirstChild("BlobmanSeatAndOwnerScript")
+	local CG = scriptObj and scriptObj:FindFirstChild("CreatureGrab")
+	local CD = scriptObj and scriptObj:FindFirstChild("CreatureDrop")
+	local R_Det = blob:FindFirstChild("RightDetector")
+	local R_Weld = R_Det and (R_Det:FindFirstChild("RightWeld") or R_Det:FindFirstChildWhichIsA("Weld"))
+	
+	if not (CG and CD and R_Det and R_Weld and blobRoot) then
+		return
+	end
+	
+	savedPos = blobRoot.CFrame
+	local tChar = kickTarget.Character
+	local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+	
+	if tRoot and blobRoot then
+		local bringStart = tick()
+		while tick() - bringStart < 0.35 do
+			if not kickBlobActive then
+				break
+			end
+			blobRoot.CFrame = tRoot.CFrame
+			blobRoot.Velocity = Vector3.zero
+			pcall(function()
+				if CG and R_Det then
+					CG:FireServer(R_Det, tRoot, R_Weld)
+				end
+				GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				GE.SetNetworkOwner:FireServer(tRoot, blobRoot.CFrame)
+			end)
+			RunService.Heartbeat:Wait()
+		end
+		blobRoot.CFrame = savedPos
+		blobRoot.Velocity = Vector3.zero
+		task.wait(0.05)
+	end
+	
+	local packetTimer = 0
+	kickBlobActive = true
+	kickBlobConnection = RunService.Heartbeat:Connect(function()
+		if not kickBlobActive or not kickTarget or not kickTarget.Parent then
+			kickBlobActive = false
+			return
+		end
+		
+		local tChar = kickTarget.Character
+		local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+		local tHum = tChar and tChar:FindFirstChild("Humanoid")
+		
+		if tRoot and tHum and tHum.Health > 0 and blobRoot then
+			blobRoot.CFrame = savedPos
+			blobRoot.Velocity = Vector3.zero
+			local lockPos = savedPos * CFrame.new(0, 23, 0)
+			tRoot.CFrame = lockPos
+			tRoot.Velocity = Vector3.zero
+			tRoot.RotVelocity = Vector3.zero
+			
+			if tick() - packetTimer > 0.05 then
+				packetTimer = tick()
+				pcall(function()
+					tHum.PlatformStand = true
+					tHum.Sit = true
+					GE.SetNetworkOwner:FireServer(tRoot, lockPos)
+					if R_Det then
+						local weld = R_Det:FindFirstChild("RightWeld") or R_Det:FindFirstChildWhichIsA("Weld")
+						if weld then
+							CD:FireServer(weld)
+						end
+					end
+					GE.DestroyGrabLine:FireServer(tRoot)
+					if R_Det then
+						CG:FireServer(R_Det, tRoot, R_Weld)
+					end
+					GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+				end)
+			end
+		else
+			if blobRoot then
+				blobRoot.CFrame = savedPos
+				blobRoot.Velocity = Vector3.zero
+			end
+		end
+	end)
+end
+
+local function stopKickBlob()
+	kickBlobActive = false
+	if kickBlobConnection then
+		kickBlobConnection:Disconnect()
+		kickBlobConnection = nil
+	end
+	local blob = Workspace:FindFirstChild(LocalPlayer.Name .. "SpawnedInToys")
+	if blob then
+		local blobman = blob:FindFirstChild("CreatureBlobman")
+		if blobman then
+			local blobRoot = blobman:FindFirstChild("HumanoidRootPart") or blobman.PrimaryPart
+			if blobRoot and savedPos then
+				blobRoot.CFrame = savedPos
+				blobRoot.Velocity = Vector3.zero
+			end
+		end
+	end
+	savedPos = nil
+end
+
+-- DUAL HAND LOOP KICK
+local kickDualActive = false
+
+local function startKickDual()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local seat = hum and hum.SeatPart
+	
+	if not seat then
+		return
+	end
+	
+	local seatParent = seat.Parent
+	local grab = seatParent:FindFirstChild("BlobmanSeatAndOwnerScript") and 
+				 seatParent.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+	local drop = seatParent:FindFirstChild("BlobmanSeatAndOwnerScript") and 
+				 seatParent.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureDrop")
+	
+	if not grab or not drop then
+		return
+	end
+	
+	local leftDet = seatParent:FindFirstChild("LeftDetector")
+	local rightDet = seatParent:FindFirstChild("RightDetector")
+	local leftWeld = leftDet and leftDet:FindFirstChild("LeftWeld")
+	local rightWeld = rightDet and rightDet:FindFirstChild("RightWeld")
+	
+	local bp = nil
+	local lastTargetCharDual = nil
+	
+	kickDualActive = true
+	task.spawn(function()
+		while kickDualActive and kickTarget and kickTarget.Parent do
+			local targetChar = kickTarget.Character
+			local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+			local targetHum = targetChar and targetChar:FindFirstChild("Humanoid")
+			
+			if targetHRP and targetHum and targetHum.Health > 0 then
+				if targetChar ~= lastTargetCharDual then
+					lastTargetCharDual = targetChar
+					if bp then
+						bp:Destroy()
+						bp = nil
+					end
+					
+					local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						hrp.CFrame = targetHRP.CFrame * CFrame.new(0, 25, 0)
+					end
+					task.wait(0.2)
+					
+					grab:FireServer(leftDet, targetHRP, leftWeld)
+					task.wait(0.3)
+					drop:FireServer(leftWeld, targetHRP)
+					task.wait(0.1)
+					
+					bp = Instance.new("BodyPosition")
+					bp.Position = Vector3.new(0, 999999, 0)
+					bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+					bp.Parent = targetHRP
+					
+					grab:FireServer(leftDet, targetHRP, leftWeld)
+					task.wait(0.2)
+					drop:FireServer(leftWeld, targetHRP)
+				end
+				
+				grab:FireServer(leftDet, targetHRP, leftWeld)
+				task.wait()
+				drop:FireServer(leftWeld, targetHRP)
+				task.wait()
+				grab:FireServer(rightDet, targetHRP, rightWeld)
+				task.wait()
+				drop:FireServer(rightWeld, targetHRP)
+				task.wait()
+				grab:FireServer(leftDet, targetHRP, leftWeld)
+				grab:FireServer(rightDet, targetHRP, rightWeld)
+				task.wait()
+				drop:FireServer(leftWeld, targetHRP)
+				drop:FireServer(rightWeld, targetHRP)
+				task.wait()
+			else
+				task.wait(0.1)
+			end
+		end
+		
+		if bp then
+			bp:Destroy()
+		end
+		kickDualActive = false
+	end)
+end
+
+local function stopKickDual()
+	kickDualActive = false
+end
+
+-- DUAL HAND + BLOB
+local kickDualBlobActive = false
+
+local function startKickDualBlob()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local seat = hum and hum.SeatPart
+	
+	if not seat then
+		return
+	end
+	
+	local seatParent = seat.Parent
+	local grab = seatParent:FindFirstChild("BlobmanSeatAndOwnerScript") and 
+				 seatParent.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureGrab")
+	local drop = seatParent:FindFirstChild("BlobmanSeatAndOwnerScript") and 
+				 seatParent.BlobmanSeatAndOwnerScript:FindFirstChild("CreatureDrop")
+	
+	if not grab or not drop then
+		return
+	end
+	
+	local leftDet = seatParent:FindFirstChild("LeftDetector")
+	local rightDet = seatParent:FindFirstChild("RightDetector")
+	local leftWeld = leftDet and leftDet:FindFirstChild("LeftWeld")
+	local rightWeld = rightDet and rightDet:FindFirstChild("RightWeld")
+	local blobRoot = seatParent:FindFirstChild("HumanoidRootPart") or seatParent.PrimaryPart
+	
+	if not (leftDet and rightDet and leftWeld and rightWeld and blobRoot) then
+		return
+	end
+	
+	local savedPos = blobRoot.CFrame
+	local bp = nil
+	local lastTargetCharDual = nil
+	
+	kickDualBlobActive = true
+	task.spawn(function()
+		while kickDualBlobActive and kickTarget and kickTarget.Parent do
+			local targetChar = kickTarget.Character
+			local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+			local targetHum = targetChar and targetChar:FindFirstChild("Humanoid")
+			
+			if targetHRP and targetHum and targetHum.Health > 0 then
+				if targetChar ~= lastTargetCharDual then
+					lastTargetCharDual = targetChar
+					if bp then
+						bp:Destroy()
+						bp = nil
+					end
+					
+					blobRoot.CFrame = targetHRP.CFrame
+					blobRoot.Velocity = Vector3.zero
+					task.wait(0.2)
+					
+					grab:FireServer(leftDet, targetHRP, leftWeld)
+					task.wait(0.3)
+					drop:FireServer(leftWeld, targetHRP)
+					task.wait(0.1)
+					
+					bp = Instance.new("BodyPosition")
+					bp.Position = Vector3.new(0, 999999, 0)
+					bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+					bp.Parent = targetHRP
+					
+					grab:FireServer(leftDet, targetHRP, leftWeld)
+					task.wait(0.2)
+					drop:FireServer(leftWeld, targetHRP)
+				end
+				
+				blobRoot.CFrame = savedPos
+				blobRoot.Velocity = Vector3.zero
+				local lockPos = savedPos * CFrame.new(0, 23, 0)
+				targetHRP.CFrame = lockPos
+				targetHRP.Velocity = Vector3.zero
+				targetHRP.RotVelocity = Vector3.zero
+				
+				grab:FireServer(leftDet, targetHRP, leftWeld)
+				task.wait()
+				drop:FireServer(leftWeld, targetHRP)
+				task.wait()
+				grab:FireServer(rightDet, targetHRP, rightWeld)
+				task.wait()
+				drop:FireServer(rightWeld, targetHRP)
+				task.wait()
+				grab:FireServer(leftDet, targetHRP, leftWeld)
+				grab:FireServer(rightDet, targetHRP, rightWeld)
+				task.wait()
+				drop:FireServer(leftWeld, targetHRP)
+				drop:FireServer(rightWeld, targetHRP)
+				task.wait()
+			else
+				task.wait(0.1)
+			end
+		end
+		
+		if bp then
+			bp:Destroy()
+		end
+		if blobRoot and savedPos then
+			blobRoot.CFrame = savedPos
+			blobRoot.Velocity = Vector3.zero
+		end
+		kickDualBlobActive = false
+	end)
+end
+
+local function stopKickDualBlob()
+	kickDualBlobActive = false
+end
+
+-- FLING
+local flingActive = false
+local flingBAV = nil
+local flingOriginalPos = nil
+
+local function startFling()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local char = LocalPlayer.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	
+	flingOriginalPos = root.CFrame
+	flingActive = true
+	
+	task.spawn(function()
+		while flingActive and kickTarget and kickTarget.Parent do
+			local targetChar = kickTarget.Character
+			local tRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+			local tHum = targetChar and targetChar:FindFirstChild("Humanoid")
+			
+			if tRoot and tHum and tHum.Health > 0 then
+				local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+				
+				if hrp and hum then
+					if not flingBAV or flingBAV.Parent ~= hrp then
+						if flingBAV then
+							flingBAV:Destroy()
+						end
+						flingBAV = Instance.new("BodyAngularVelocity")
+						flingBAV.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+						flingBAV.AngularVelocity = Vector3.new(0, 10000, 0)
+						flingBAV.P = 10000
+						flingBAV.Parent = hrp
+					end
+					
+					for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.CanCollide = false
+						end
+					end
+					
+					local loop = RunService.Heartbeat:Connect(function()
+						if not flingActive or not tRoot or not tRoot.Parent then
+							return
+						end
+						hrp.CFrame = tRoot.CFrame
+						hrp.Velocity = Vector3.zero
+					end)
+					
+					local startTime = tick()
+					while tick() - startTime < 1.5 do
+						if not flingActive or not tRoot.Parent then
+							break
+						end
+						task.wait(0.1)
+					end
+					
+					if loop then
+						loop:Disconnect()
+					end
+				end
+			else
+				task.wait(0.2)
+			end
+			task.wait(0.1)
+		end
+		
+		if flingBAV then
+			flingBAV:Destroy()
+			flingBAV = nil
+		end
+		
+		local char = LocalPlayer.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				hrp.RotVelocity = Vector3.zero
+				hrp.Velocity = Vector3.zero
+				if flingOriginalPos then
+					hrp.CFrame = flingOriginalPos
+				end
+			end
+		end
+	end)
+end
+
+local function stopFling()
+	flingActive = false
+	if flingBAV then
+		flingBAV:Destroy()
+		flingBAV = nil
+	end
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		hrp.RotVelocity = Vector3.zero
+		hrp.Velocity = Vector3.zero
+	end
+	flingOriginalPos = nil
+end
+
+-- BRING
+local function bringTarget()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local seat = hum and hum.SeatPart
+	
+	if not seat or seat.Parent.Name ~= "CreatureBlobman" then
+		return
+	end
+	
+	local blob = seat.Parent
+	local blobRoot = blob:FindFirstChild("HumanoidRootPart")
+	local scriptObj = blob:FindFirstChild("BlobmanSeatAndOwnerScript")
+	
+	if not blobRoot or not scriptObj then
+		return
+	end
+	
+	local CG = scriptObj:FindFirstChild("CreatureGrab")
+	local CD = scriptObj:FindFirstChild("CreatureDrop")
+	local R_Det = blob:FindFirstChild("RightDetector")
+	local R_Weld = R_Det and R_Det:FindFirstChild("RightWeld")
+	
+	local tChar = kickTarget.Character
+	local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+	
+	if not tRoot then
+		return
+	end
+	
+	local home = blobRoot.CFrame
+	blobRoot.CFrame = tRoot.CFrame
+	blobRoot.Velocity = Vector3.new()
+	blobRoot.RotVelocity = Vector3.new()
+	task.wait(0.3)
+	
+	pcall(function()
+		CG:FireServer(R_Det, tRoot, R_Weld)
+	end)
+	
+	task.wait(0.5)
+	blobRoot.CFrame = home
+	blobRoot.Velocity = Vector3.new()
+	blobRoot.RotVelocity = Vector3.new()
+	task.wait(0.05)
+	
+	for i = 1, 12 do
+		tRoot.CFrame = home * CFrame.new(0, 3, 0)
+		tRoot.Velocity = Vector3.new()
+		tRoot.RotVelocity = Vector3.new()
+		task.wait(0.03)
+	end
+	
+	for i = 1, 8 do
+		local weld = R_Det:FindFirstChild("RightWeld")
+		if weld then
+			pcall(function()
+				CD:FireServer(weld)
+			end)
+		end
+		task.wait(0.03)
+	end
+end
+
+-- DESTROY ANTI KICK
+local destroyAntiKickActive = false
+
+local function startDestroyAntiKick()
+	if not kickTarget or not kickTarget.Parent then
+		return
+	end
+	
+	local SetNetOwner = RS.GrabEvents.SetNetworkOwner
+	
+	destroyAntiKickActive = true
+	task.spawn(function()
+		while destroyAntiKickActive and kickTarget and kickTarget.Parent do
+			local spawned = Workspace:FindFirstChild(kickTarget.Name .. "SpawnedInToys")
+			if spawned then
+				local function CheckAndYeet(toy)
+					local part = toy:FindFirstChild("SoundPart")
+					if part then
+						SetNetOwner:FireServer(part, part.CFrame)
+						if part:FindFirstChild("PartOwner") and part.PartOwner.Value == LocalPlayer.Name then
+							part.CFrame = CFrame.new(0, 1000, 0)
+						end
+					end
+				end
+				
+				if spawned:FindFirstChild("NinjaKunai") then
+					CheckAndYeet(spawned.NinjaKunai)
+				end
+				if spawned:FindFirstChild("NinjaShuriken") then
+					CheckAndYeet(spawned.NinjaShuriken)
+				end
+				if spawned:FindFirstChild("AntiKick") then
+					CheckAndYeet(spawned.AntiKick)
+				end
+			end
+			task.wait(0.1)
+		end
+	end)
+end
+
+local function stopDestroyAntiKick()
+	destroyAntiKickActive = false
+end
+
+-- =====================================================================
+-- BUTTONS FOR EACH LOOP KICK TYPE
+-- =====================================================================
+
+KickGroup:AddButton({
+	Text = "Start Spam Grab",
+	Func = function()
+		if kickSpamActive then
+			stopKickSpam()
+		else
+			startKickSpam()
+		end
+	end
 })
 
-BackGroup:AddInput("BackgroundAsset", {
-    Text = "Asset ID",
-    Default = "0",
-    Callback = function(Value)
-        bgData.Image = tostring(Value)
-        applyBackground()
-    end
+KickGroup:AddButton({
+	Text = "Stop Spam Grab",
+	Func = function()
+		stopKickSpam()
+	end
 })
 
-BackGroup:AddButton({
-    Text = "Clear Background",
-    Callback = function()
-        bgData.Image = "0"
-        applyBackground()
-    end
+KickGroup:AddDivider()
+
+KickGroup:AddButton({
+	Text = "Start Ragdoll Grab",
+	Func = function()
+		if kickRagdollActive then
+			stopKickRagdoll()
+		else
+			startKickRagdoll()
+		end
+	end
 })
 
-applyBackground()
+KickGroup:AddButton({
+	Text = "Stop Ragdoll Grab",
+	Func = function()
+		stopKickRagdoll()
+	end
+})
 
-Library.ToggleKeybind = Options.MenuKeybind
+KickGroup:AddDivider()
 
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-ThemeManager:SetFolder("9rr")
-SaveManager:SetFolder("9rr/Configs")
-SaveManager:SetSubFolder("game-config")
-
-ThemeManager:ApplyToTab(Tabs.UISettings)
-SaveManager:BuildConfigSection(Tabs.UISettings)
-
-Window:SetCornerRadius(20)
-Library.ShowCustomCursor = true
-watermark = Library:AddDraggableLabel("ᴇᴅɢᴇ | 0 FPS | 0 ms")
-
-task.spawn(function()
-    while task.wait(0.5) do
-        fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
-        ping = math.floor(game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue())
-        watermark:SetText(string.format("ᴇᴅɢᴇ | %d FPS | %d ms", fps, ping))
-    end
-end)
+KickGroup:AddButton({
